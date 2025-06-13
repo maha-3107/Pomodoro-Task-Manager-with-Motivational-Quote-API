@@ -4,6 +4,16 @@ export default function Timer() {
   const [time, setTime] = useState(25 * 60); // 25 minutes
   const [isRunning, setIsRunning] = useState(false);
   const [quote, setQuote] = useState("");
+  const [dailyCount, setDailyCount] = useState(0);
+
+  // Save a completed pomodoro to localStorage
+  const savePomodoroToLocalStorage = () => {
+    const today = new Date().toISOString().split("T")[0];
+    const stored = JSON.parse(localStorage.getItem("pomodoroData") || "{}");
+    stored[today] = (stored[today] || 0) + 1;
+    localStorage.setItem("pomodoroData", JSON.stringify(stored));
+    setDailyCount(stored[today]); // update the UI
+  };
 
   const startTimer = () => {
     if (time > 0) setIsRunning(true);
@@ -12,7 +22,7 @@ export default function Timer() {
   const resetTimer = () => {
     setIsRunning(false);
     setTime(25 * 60);
-    setQuote(""); // Clear quote
+    setQuote("");
   };
 
   useEffect(() => {
@@ -23,6 +33,7 @@ export default function Timer() {
         setTime((prevTime) => prevTime - 1);
       }, 1000);
     } else if (isRunning && time === 0) {
+      savePomodoroToLocalStorage(); // ✅ save on complete
       setIsRunning(false);
       fetchQuote();
     }
@@ -30,10 +41,21 @@ export default function Timer() {
     return () => clearInterval(timer);
   }, [isRunning, time]);
 
+  // Load today's pomodoro count on page load
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const stored = JSON.parse(localStorage.getItem("pomodoroData") || "{}");
+    setDailyCount(stored[today] || 0);
+  }, []);
+
   const fetchQuote = async () => {
-    const res = await fetch("/api/quote");
-    const data = await res.json();
-    setQuote(data.quote || "Stay motivated!");
+    try {
+      const res = await fetch("/api/quote");
+      const data = await res.json();
+      setQuote(data.quote || "Stay motivated!");
+    } catch (err) {
+      setQuote("Keep going! You're doing great!");
+    }
   };
 
   const formatTime = (seconds) => {
@@ -59,6 +81,7 @@ export default function Timer() {
           <p className="italic">"{quote}"</p>
         </div>
       )}
+      <p className="mt-4 text-gray-600">Pomodoros today: {dailyCount}</p>
     </div>
   );
 }
